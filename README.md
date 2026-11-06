@@ -3,7 +3,7 @@
 An OWASP Top 10 showcase: one small invoice portal built twice, once with classic security
 vulnerabilities and once with each one fixed, plus automated tests that prove each fix works.
 
-> ⚠️ The vulnerable mode is intentionally insecure. Run it locally only. Never deploy it.
+>⚠️ Warning: This project contains intentionally vulnerable code for learning purposes. Run it on your own computer only, and never deploy the vulnerable mode to a public server.
 
 ## Stack
 - ASP.NET Core 8 Web API, Entity Framework Core, SQL Server
