@@ -1,0 +1,14 @@
+main { max-width: 860px; margin: 0 auto; padding: 32px 16px; }
+header h1 { margin: 0 0 4px; }
+header p { margin: 0 0 24px; color: #555; }
+.card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 24px; display: flex; flex-direction: column; gap: 12px; }
+.row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; }
+input { padding: 8px 10px; border: 1px solid #bbb; border-radius: 6px; font: inherit; font-weight: 400; }
+button { padding: 10px 16px; border: 0; border-radius: 6px; background: #0e6e66; color: #fff; font: inherit; cursor: pointer; }
+button.secondary { background: #e8e8e8; color: #111; }
+.error { color: #b00020; margin: 0; }
+.hint { color: #555; font-size: 0.9em; margin: 0; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid #ddd; }
+.num { text-align: right; }
