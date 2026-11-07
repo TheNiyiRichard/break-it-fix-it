@@ -27,4 +27,18 @@ public class SecureInvoicesController : ControllerBase
 
         return Ok(invoices);
     }
+
+    // FIX FOR VULNERABILITY 2: every lookup also checks ownership.
+    // If the invoice exists but belongs to someone else, we answer 404 (not 403),
+    // so attackers can't even learn which invoice IDs exist.
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var invoice = await _db.Invoices
+            .Where(i => i.Id == id && i.OwnerId == CurrentUserId)
+            .Select(i => new { i.Id, i.ClientName, i.Amount, i.Paid, i.Notes, i.OwnerId })
+            .SingleOrDefaultAsync();
+
+        return invoice is null ? NotFound(new { message = "Invoice not found." }) : Ok(invoice);
+    }
 }

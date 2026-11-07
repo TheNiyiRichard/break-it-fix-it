@@ -1,5 +1,5 @@
 // Small helper for talking to the API.
-// Day 1 only uses "secure" mode; Day 4 adds the switch to "vulnerable".
+// Every call goes to either /api/secure/... or /api/vulnerable/..., depending on the mode.
 export type Mode = 'secure' | 'vulnerable'
 
 export interface CurrentUser {
@@ -13,6 +13,7 @@ export interface Invoice {
   amount: number
   paid: boolean
   notes: string
+  ownerId?: number
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -39,4 +40,5 @@ export const api = {
   logout: (mode: Mode) => request<void>(`/api/${mode}/auth/logout`, { method: 'POST' }),
   me: (mode: Mode) => request<CurrentUser>(`/api/${mode}/auth/me`),
   myInvoices: (mode: Mode) => request<Invoice[]>(`/api/${mode}/invoices`),
+  invoiceById: (mode: Mode, id: number) => request<Invoice>(`/api/${mode}/invoices/${id}`),
 }
