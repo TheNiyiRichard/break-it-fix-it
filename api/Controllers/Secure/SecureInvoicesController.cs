@@ -41,4 +41,24 @@ public class SecureInvoicesController : ControllerBase
 
         return invoice is null ? NotFound(new { message = "Invoice not found." }) : Ok(invoice);
     }
+
+    // Update the notes on one of YOUR invoices.
+    // The XSS fix itself lives in the front end (notes are always shown as plain text),
+    // but the server still validates input as a second layer of defence.
+    [HttpPut("{id:int}/notes")]
+    public async Task<IActionResult> UpdateNotes(int id, UpdateNotesRequest request)
+    {
+        var notes = request.Notes?.Trim() ?? "";
+        if (notes.Length > 500)
+            return BadRequest(new { message = "Notes must be 500 characters or fewer." });
+
+        var invoice = await _db.Invoices.SingleOrDefaultAsync(i => i.Id == id && i.OwnerId == CurrentUserId);
+        if (invoice is null) return NotFound(new { message = "Invoice not found." });
+
+        invoice.Notes = notes;
+        await _db.SaveChangesAsync();
+        return Ok(new { invoice.Id, invoice.ClientName, invoice.Amount, invoice.Paid, invoice.Notes, invoice.OwnerId });
+    }
 }
+
+public record UpdateNotesRequest(string? Notes);

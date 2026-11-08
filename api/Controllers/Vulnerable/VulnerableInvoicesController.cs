@@ -43,4 +43,19 @@ public class VulnerableInvoicesController : ControllerBase
 
         return invoice is null ? NotFound(new { message = "Invoice not found." }) : Ok(invoice);
     }
+
+    // Saves whatever text it's given, HTML and all, with no limits.
+    // On its own that's not the bug: the damage happens when the front end
+    // renders these notes as HTML (Vulnerability 3, stored XSS).
+    // Ownership IS checked here, so this endpoint only demonstrates XSS, not IDOR.
+    [HttpPut("{id:int}/notes")]
+    public async Task<IActionResult> UpdateNotes(int id, Secure.UpdateNotesRequest request)
+    {
+        var invoice = await _db.Invoices.SingleOrDefaultAsync(i => i.Id == id && i.OwnerId == CurrentUserId);
+        if (invoice is null) return NotFound(new { message = "Invoice not found." });
+
+        invoice.Notes = request.Notes ?? "";
+        await _db.SaveChangesAsync();
+        return Ok(new { invoice.Id, invoice.ClientName, invoice.Amount, invoice.Paid, invoice.Notes, invoice.OwnerId });
+    }
 }

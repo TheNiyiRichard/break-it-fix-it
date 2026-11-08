@@ -33,8 +33,8 @@ Demo users: `alice / alice123`, `bob / bob123`
 |---|---|---|---|
 | 1 | SQL injection | A03: Injection | ✅ |
 | 2 | Broken access control (IDOR) | A01: Broken Access Control | ✅ |
-| 3 | Stored XSS | A03: Injection | ⏳ |
-| 4 | Plain-text password storage | A02: Cryptographic Failures | ⏳ |
+| 3 | Stored XSS | A03: Injection | ✅ |
+| 4 | Plain-text password storage | A02: Cryptographic Failures | ✅ |
 | 5 | Security misconfiguration | A05: Security Misconfiguration | ⏳ |
 
 ### 1. SQL injection
@@ -68,9 +68,44 @@ attackers can't even learn which invoice IDs exist.
 
 Code: `api/Controllers/Vulnerable/VulnerableInvoicesController.cs` vs `api/Controllers/Secure/SecureInvoicesController.cs`
 
+### 3. Stored XSS
+**The attack:** in Vulnerable mode, open one of your invoices and save this note:
+```html
+<img src=x onerror="alert('XSS: this code ran in your browser')">
+```
+A pop-up appears: the note ran as code in the browser.
+
+**Why it works:** the vulnerable page renders notes with React's `dangerouslySetInnerHTML`, so saved
+text is treated as real HTML. The image fails to load, which triggers `onerror` and runs the attacker's
+code. It's "stored" XSS because the attack is saved in the database and runs for anyone who views
+that invoice.
+
+**The fix:** notes are rendered as plain text, which React escapes automatically, so HTML is displayed,
+never executed. The server also limits notes to 500 characters as a second layer of defence. The session
+cookie is HttpOnly, so even if a script did run, it couldn't read the session.
+
+Code: `InvoiceNotes` in `web/src/App.tsx`, and the notes endpoints in both invoice controllers
+
+### 4. Plain-text password storage
+**The demo:** sign in, scroll down and click **Simulate a data breach** to see what an attacker gets
+if the `Users` table leaks.
+
+**The risk:** plain-text passwords let attackers sign in immediately, and try the same password on
+victims' email, banking and other accounts, since people reuse passwords.
+
+**The fix:** the secure login checks salted PBKDF2 hashes (ASP.NET Identity `PasswordHasher`).
+- A hash can't be reversed into the password.
+- A random salt makes identical passwords produce different hashes.
+- Slow, repeated hashing makes guessing passwords expensive.
+
+> Note: this demo database stores both versions of each password so the two modes can be compared.
+> A real system would store only the hash. The breach simulator is only available in the Development
+> environment and requires sign-in.
+
+Code: `api/Controllers/DemoController.cs`, `api/Data/DbSeeder.cs`, `api/Controllers/Secure/SecureAuthController.cs`
+
 ## Coming next
-- Stored XSS and the fix (safe rendering and a Content Security Policy)
-- Hashed vs plain-text passwords
-- Security misconfiguration (error handling and security headers)
+- Security misconfiguration: detailed error pages vs safe errors, plus security headers including a
+  Content Security Policy
 - Automated tests proving each attack succeeds on the vulnerable version and fails on the secure one
 - CI with GitHub Actions

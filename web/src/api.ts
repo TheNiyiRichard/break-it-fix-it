@@ -41,4 +41,16 @@ export const api = {
   me: (mode: Mode) => request<CurrentUser>(`/api/${mode}/auth/me`),
   myInvoices: (mode: Mode) => request<Invoice[]>(`/api/${mode}/invoices`),
   invoiceById: (mode: Mode, id: number) => request<Invoice>(`/api/${mode}/invoices/${id}`),
+  updateNotes: (mode: Mode, id: number, notes: string) =>
+    request<Invoice>(`/api/${mode}/invoices/${id}/notes`, {
+      method: 'PUT',
+      body: JSON.stringify({ notes }),
+    }),
+  simulateBreach: () => request<BreachRow[]>('/api/demo/breach'),
+}
+
+export interface BreachRow {
+  username: string
+  plainTextLeak: string
+  hashedLeak: string
 }

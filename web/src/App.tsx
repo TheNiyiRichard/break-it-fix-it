@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { api, type CurrentUser, type Invoice, type Mode } from './api'
+import { api, type BreachRow, type CurrentUser, type Invoice, type Mode } from './api'
 import './App.css'
 
 function ModeSwitch({ mode, onChange }: { mode: Mode; onChange: (mode: Mode) => void }) {
@@ -52,8 +52,42 @@ function LoginForm({ mode, onLogin }: { mode: Mode; onLogin: (user: CurrentUser)
   )
 }
 
-function InvoiceDetail({ invoice, user }: { invoice: Invoice; user: CurrentUser }) {
+function InvoiceNotes({ mode, notes }: { mode: Mode; notes: string }) {
+  if (mode === 'vulnerable') {
+    // ❌ VULNERABILITY 3: STORED XSS
+    // dangerouslySetInnerHTML tells React to treat the saved notes as real HTML.
+    // A note like <img src=x onerror="alert('XSS')"> becomes an <img> tag whose
+    // onerror code runs in the browser of anyone who views this invoice.
+    return <dd className="notes" dangerouslySetInnerHTML={{ __html: notes }} />
+  }
+
+  // ✅ FIX: render notes as plain text. React escapes it automatically,
+  // so <img ...> is shown as the characters "<img ...>", never run as code.
+  return <dd className="notes">{notes}</dd>
+}
+
+function InvoiceDetail({ mode, invoice, user, onSaved }: {
+  mode: Mode
+  invoice: Invoice
+  user: CurrentUser
+  onSaved: (invoice: Invoice) => void
+}) {
   const notMine = invoice.ownerId !== undefined && invoice.ownerId !== user.id
+  const [draft, setDraft] = useState(invoice.notes)
+  const [saveError, setSaveError] = useState('')
+
+  useEffect(() => setDraft(invoice.notes), [invoice])
+
+  async function handleSave(event: FormEvent) {
+    event.preventDefault()
+    setSaveError('')
+    try {
+      onSaved(await api.updateNotes(mode, invoice.id, draft))
+    } catch (err) {
+      setSaveError((err as Error).message)
+    }
+  }
+
   return (
     <div className={notMine ? 'detail leaked' : 'detail'}>
       {notMine && <p className="error" role="alert">⚠️ This invoice belongs to another user. You should not be able to see it.</p>}
@@ -62,9 +96,73 @@ function InvoiceDetail({ invoice, user }: { invoice: Invoice; user: CurrentUser 
         <dt>Client</dt><dd>{invoice.clientName}</dd>
         <dt>Amount</dt><dd>${invoice.amount.toFixed(2)}</dd>
         <dt>Status</dt><dd>{invoice.paid ? 'Paid' : 'Unpaid'}</dd>
-        <dt>Notes</dt><dd>{invoice.notes}</dd>
+        <dt>Notes</dt><InvoiceNotes mode={mode} notes={invoice.notes} />
       </dl>
+
+      {!notMine && (
+        <form className="notes-form" onSubmit={handleSave}>
+          <label>
+            Edit notes
+            <textarea rows={3} value={draft} onChange={e => setDraft(e.target.value)} />
+          </label>
+          {saveError && <p className="error" role="alert">{saveError}</p>}
+          <button type="submit">Save notes</button>
+          <p className="attack">
+            <strong>Try the attack (Vulnerability 3, stored XSS):</strong> save this as the note:{' '}
+            <code>{`<img src=x onerror="alert('XSS: this code ran in your browser')">`}</code>{' '}
+            In Vulnerable mode a pop-up appears. In Secure mode the note is shown as harmless text.
+          </p>
+        </form>
+      )}
     </div>
+  )
+}
+
+function BreachPanel() {
+  const [rows, setRows] = useState<BreachRow[] | null>(null)
+  const [error, setError] = useState('')
+
+  async function simulate() {
+    setError('')
+    try {
+      setRows(await api.simulateBreach())
+    } catch (err) {
+      setError((err as Error).message)
+    }
+  }
+
+  return (
+    <section className="card breach">
+      <h2>Vulnerability 4: password storage</h2>
+      <p>
+        Imagine an attacker steals the <code>Users</code> table. What do they get? The vulnerable login
+        checks passwords stored as <strong>plain text</strong>. The secure login checks <strong>salted hashes</strong>.
+      </p>
+      <button className="secondary" onClick={simulate}>Simulate a data breach</button>
+      {error && <p className="error" role="alert">{error}</p>}
+      {rows && (
+        <div className="table-scroll">
+          <table>
+            <thead>
+              <tr><th>User</th><th>Plain-text storage leaks</th><th>Hashed storage leaks</th></tr>
+            </thead>
+            <tbody>
+              {rows.map(row => (
+                <tr key={row.username}>
+                  <td>{row.username}</td>
+                  <td className="leak-bad">{row.plainTextLeak}</td>
+                  <td className="leak-good"><code className="hash">{row.hashedLeak}</code></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="hint">
+            Plain text: the attacker can sign in right away, and try the same password on the victim's other accounts.
+            Hashed: the hash can't be turned back into the password, and each one includes a random salt.
+          </p>
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -134,7 +232,17 @@ function InvoiceList({ mode, user, onLogout }: { mode: Mode; user: CurrentUser; 
       </p>
 
       {lookupError && <p className="error" role="alert">{lookupError}</p>}
-      {selected && <InvoiceDetail invoice={selected} user={user} />}
+      {selected && (
+        <InvoiceDetail
+          mode={mode}
+          invoice={selected}
+          user={user}
+          onSaved={updated => {
+            setSelected(updated)
+            setInvoices(list => list.map(i => (i.id === updated.id ? { ...i, notes: updated.notes } : i)))
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -167,7 +275,12 @@ export default function App() {
         <p className="banner" role="status">⚠️ Vulnerable mode: this code is intentionally insecure. Local demo only.</p>
       )}
       {checking ? <p>Loading…</p> : user
-        ? <InvoiceList mode={mode} user={user} onLogout={handleLogout} />
+        ? (
+          <div className="stack">
+            <InvoiceList mode={mode} user={user} onLogout={handleLogout} />
+            <BreachPanel />
+          </div>
+        )
         : <LoginForm mode={mode} onLogin={setUser} />}
     </main>
   )

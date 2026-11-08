@@ -37,3 +37,16 @@ th, td { text-align: left; padding: 8px; border-bottom: 1px solid #ddd; }
 .detail dl { display: grid; grid-template-columns: 90px 1fr; gap: 4px 12px; margin: 0; }
 .detail dt { font-weight: 600; color: #555; }
 .detail dd { margin: 0; }
+.detail .notes { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.stack { display: flex; flex-direction: column; gap: 20px; }
+.notes-form { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; border-top: 1px solid #ddd; padding-top: 16px; }
+.notes-form button { align-self: flex-start; }
+textarea { padding: 8px 10px; border: 1px solid #bbb; border-radius: 6px; font: inherit; font-weight: 400; resize: vertical; }
+
+.breach h2 { margin: 0; }
+.breach p { margin: 0; }
+.breach > button { align-self: flex-start; }
+.table-scroll { overflow-x: auto; display: flex; flex-direction: column; gap: 8px; }
+.leak-bad { color: #b00020; font-weight: 600; }
+.leak-good .hash { display: inline-block; max-width: 340px; overflow-wrap: anywhere; font-size: 0.8em; }
