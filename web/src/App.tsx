@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { api, type BreachRow, type CurrentUser, type Invoice, type Mode } from './api'
+import { api, type BreachRow, type CurrentUser, type Invoice, type Mode, type RawResponse } from './api'
 import './App.css'
 
 function ModeSwitch({ mode, onChange }: { mode: Mode; onChange: (mode: Mode) => void }) {
@@ -115,6 +115,75 @@ function InvoiceDetail({ mode, invoice, user, onSaved }: {
         </form>
       )}
     </div>
+  )
+}
+
+const LEAKY_HEADERS = ['Server', 'X-Powered-By']
+
+function SummaryPanel({ mode }: { mode: Mode }) {
+  const [currency, setCurrency] = useState('USD')
+  const [result, setResult] = useState<RawResponse | null>(null)
+
+  useEffect(() => setResult(null), [mode])
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault()
+    setResult(await api.summary(mode, currency))
+  }
+
+  return (
+    <section className="card">
+      <h2>Vulnerability 5: security misconfiguration</h2>
+      <form className="lookup" onSubmit={handleSubmit}>
+        <label>
+          Total of my invoices in currency
+          <input value={currency} onChange={e => setCurrency(e.target.value)} placeholder="CAD, USD or EUR" />
+        </label>
+        <button type="submit">Get total</button>
+      </form>
+      <p className="attack">
+        <strong>Try the attack:</strong> enter an unsupported currency like <code>XYZ</code>. Vulnerable mode crashes and
+        leaks internal details; Secure mode returns a short, safe message. Then compare the response headers below.
+      </p>
+
+      {result && (
+        <>
+          {result.ok ? (
+            <p className="total">
+              Total: <strong>{result.body.total.toFixed(2)} {result.body.currency}</strong> across {result.body.count} invoices
+            </p>
+          ) : mode === 'vulnerable' ? (
+            <div className="leak-box">
+              <p className="error" role="alert">⚠️ HTTP {result.status}: the server sent its internal details to the browser.</p>
+              <pre>{JSON.stringify(result.body, null, 2)}</pre>
+            </div>
+          ) : (
+            <p className="error" role="alert">HTTP {result.status}: {result.body?.message}</p>
+          )}
+
+          <h3>Response headers</h3>
+          <div className="table-scroll">
+            <table className="headers">
+              <thead><tr><th>Header</th><th>Value</th></tr></thead>
+              <tbody>
+                {Object.entries(result.headers).map(([name, value]) => {
+                  const leaky = LEAKY_HEADERS.includes(name)
+                  const status = value === null ? (leaky ? 'good' : 'bad') : (leaky ? 'bad' : 'good')
+                  return (
+                    <tr key={name}>
+                      <td><code>{name}</code></td>
+                      <td className={`header-${status}`}>
+                        {value ?? (leaky ? 'Not sent (good: nothing revealed)' : 'Missing')}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </section>
   )
 }
 
@@ -279,6 +348,7 @@ export default function App() {
           <div className="stack">
             <InvoiceList mode={mode} user={user} onLogout={handleLogout} />
             <BreachPanel />
+            <SummaryPanel mode={mode} />
           </div>
         )
         : <LoginForm mode={mode} onLogin={setUser} />}

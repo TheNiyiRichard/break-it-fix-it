@@ -35,7 +35,7 @@ Demo users: `alice / alice123`, `bob / bob123`
 | 2 | Broken access control (IDOR) | A01: Broken Access Control | ✅ |
 | 3 | Stored XSS | A03: Injection | ✅ |
 | 4 | Plain-text password storage | A02: Cryptographic Failures | ✅ |
-| 5 | Security misconfiguration | A05: Security Misconfiguration | ⏳ |
+| 5 | Security misconfiguration | A05: Security Misconfiguration | ✅ |
 
 ### 1. SQL injection
 **The attack:** in Vulnerable mode, sign in with username `' OR 1=1 --` and any password.
@@ -104,8 +104,36 @@ victims' email, banking and other accounts, since people reuse passwords.
 
 Code: `api/Controllers/DemoController.cs`, `api/Data/DbSeeder.cs`, `api/Controllers/Secure/SecureAuthController.cs`
 
+### 5. Security misconfiguration
+**The attack:** in the "security misconfiguration" panel, ask for your invoice total in an unsupported
+currency like `XYZ`.
+
+**Why it's dangerous:**
+- **Leaky errors:** the vulnerable endpoint doesn't validate input, so it crashes and sends the raw
+  exception to the browser: error type, stack trace with file paths, machine name and database name.
+  Attackers use this to map out a system before attacking it.
+- **Leaky headers:** vulnerable responses announce `Server: Kestrel` and `X-Powered-By: ASP.NET Core 8`,
+  and send no protective headers.
+
+**The fix:**
+- **Validate input:** unsupported currencies get a clear `400 Bad Request` instead of a crash.
+- **Global error handler:** anything unexpected is logged on the server; the browser only gets a generic
+  message and a trace ID.
+- **Security headers** on every secure API response, with no technology banners:
+
+| Header | Value | Protects against |
+|---|---|---|
+| `X-Content-Type-Options` | `nosniff` | Browsers guessing file types |
+| `X-Frame-Options` | `DENY` | Clickjacking (the page hidden inside another site) |
+| `Referrer-Policy` | `no-referrer` | Leaking URLs to other sites |
+| `Content-Security-Policy` | `default-src 'none'; frame-ancestors 'none'` | Loading unexpected content |
+| `Cache-Control` | `no-store` | Private data being cached |
+
+> In production, the website's HTML should also be served with a strict Content-Security-Policy such as
+> `script-src 'self'`. That would block inline scripts like the XSS payload above, a second layer of defence.
+
+Code: `api/Program.cs`, and the `summary` endpoints in both invoice controllers
+
 ## Coming next
-- Security misconfiguration: detailed error pages vs safe errors, plus security headers including a
-  Content Security Policy
 - Automated tests proving each attack succeeds on the vulnerable version and fails on the secure one
 - CI with GitHub Actions

@@ -44,6 +44,36 @@ public class VulnerableInvoicesController : ControllerBase
         return invoice is null ? NotFound(new { message = "Invoice not found." }) : Ok(invoice);
     }
 
+    // VULNERABILITY 5: SECURITY MISCONFIGURATION (leaky error messages)
+    // Total of your invoices, converted to another currency.
+    // There's no input validation, so an unknown currency like "XYZ" crashes the code,
+    // and the error handler sends the full internal details back to the browser:
+    // exception type, stack trace (with file paths), machine name and database name.
+    // Attackers use this to map out your system before attacking it.
+    [HttpGet("summary")]
+    public async Task<IActionResult> Summary(string currency = "CAD")
+    {
+        try
+        {
+            var amounts = await _db.Invoices.Where(i => i.OwnerId == CurrentUserId).Select(i => i.Amount).ToListAsync();
+            var rate = Models.DemoRates.FromCad[currency.ToUpperInvariant()]; // ❌ throws for unknown currencies
+            return Ok(new { currency = currency.ToUpperInvariant(), total = Math.Round(amounts.Sum() * rate, 2), count = amounts.Count });
+        }
+        catch (Exception ex)
+        {
+            var connection = _db.Database.GetDbConnection();
+            return StatusCode(500, new
+            {
+                error = ex.GetType().FullName,
+                message = ex.Message,
+                stackTrace = ex.StackTrace,
+                machine = Environment.MachineName,
+                database = $"{connection.DataSource} / {connection.Database}",
+                runtime = $".NET {Environment.Version}",
+            });
+        }
+    }
+
     // Saves whatever text it's given, HTML and all, with no limits.
     // On its own that's not the bug: the damage happens when the front end
     // renders these notes as HTML (Vulnerability 3, stored XSS).

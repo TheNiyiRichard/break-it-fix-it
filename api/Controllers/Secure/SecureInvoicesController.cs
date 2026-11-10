@@ -42,6 +42,24 @@ public class SecureInvoicesController : ControllerBase
         return invoice is null ? NotFound(new { message = "Invoice not found." }) : Ok(invoice);
     }
 
+    // FIX FOR VULNERABILITY 5 (error messages):
+    // 1. Validate input first, and answer bad input with a clear 400, not a crash.
+    // 2. Anything unexpected is caught by the global error handler in Program.cs,
+    //    which logs the details on the server and sends the browser only a generic
+    //    message plus a trace ID that support can look up in the logs.
+    [HttpGet("summary")]
+    public async Task<IActionResult> Summary(string? currency = "CAD")
+    {
+        var code = (currency ?? "").Trim().ToUpperInvariant();
+        if (!Models.DemoRates.FromCad.TryGetValue(code, out var rate))
+        {
+            return BadRequest(new { message = $"Unsupported currency. Use one of: {string.Join(", ", Models.DemoRates.FromCad.Keys)}." });
+        }
+
+        var amounts = await _db.Invoices.Where(i => i.OwnerId == CurrentUserId).Select(i => i.Amount).ToListAsync();
+        return Ok(new { currency = code, total = Math.Round(amounts.Sum() * rate, 2), count = amounts.Count });
+    }
+
     // Update the notes on one of YOUR invoices.
     // The XSS fix itself lives in the front end (notes are always shown as plain text),
     // but the server still validates input as a second layer of defence.

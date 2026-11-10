@@ -47,6 +47,34 @@ export const api = {
       body: JSON.stringify({ notes }),
     }),
   simulateBreach: () => request<BreachRow[]>('/api/demo/breach'),
+
+  // Returns the raw response (status, body and headers) so the page can show
+  // exactly what each mode sends back, including error details and headers.
+  summary: async (mode: Mode, currency: string): Promise<RawResponse> => {
+    const response = await fetch(`/api/${mode}/invoices/summary?currency=${encodeURIComponent(currency)}`, {
+      credentials: 'same-origin',
+    })
+    const headers: Record<string, string | null> = {}
+    for (const name of WATCHED_HEADERS) headers[name] = response.headers.get(name)
+    return { ok: response.ok, status: response.status, body: await response.json().catch(() => null), headers }
+  },
+}
+
+export const WATCHED_HEADERS = [
+  'Server',
+  'X-Powered-By',
+  'X-Content-Type-Options',
+  'X-Frame-Options',
+  'Referrer-Policy',
+  'Content-Security-Policy',
+  'Cache-Control',
+]
+
+export interface RawResponse {
+  ok: boolean
+  status: number
+  body: any
+  headers: Record<string, string | null>
 }
 
 export interface BreachRow {

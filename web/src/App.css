@@ -49,4 +49,12 @@ textarea { padding: 8px 10px; border: 1px solid #bbb; border-radius: 6px; font: 
 .breach > button { align-self: flex-start; }
 .table-scroll { overflow-x: auto; display: flex; flex-direction: column; gap: 8px; }
 .leak-bad { color: #b00020; font-weight: 600; }
+
+.card h3 { margin: 8px 0 0; }
+.total { margin: 0; font-size: 1.05em; }
+.leak-box { border: 1px solid #b42318; background: #fdecea; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.leak-box pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.8em; max-height: 280px; overflow-y: auto; }
+.headers td:last-child { overflow-wrap: anywhere; }
+.header-good { color: #0b6b3a; }
+.header-bad { color: #b00020; font-weight: 600; }
 .leak-good .hash { display: inline-block; max-width: 340px; overflow-wrap: anywhere; font-size: 0.8em; }
