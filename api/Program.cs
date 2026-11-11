@@ -84,7 +84,10 @@ app.Use(async (context, next) =>
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
+    // SQL Server (the real app) uses migrations. The automated tests swap in a
+    // throwaway in-memory SQLite database, which is simply created from the model.
+    if (db.Database.IsSqlServer()) db.Database.Migrate();
+    else db.Database.EnsureCreated();
     DbSeeder.Seed(db);
 }
 

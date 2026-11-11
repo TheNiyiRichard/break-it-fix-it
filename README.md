@@ -24,6 +24,14 @@ the vulnerable version and watch the secure version block it.
 2. API: `cd api` → `dotnet run` (http://localhost:5080, Swagger at /swagger)
 3. Web: `cd web` → `npm install` → `npm run dev` (http://localhost:5173)
 
+## Run the tests
+- Backend (27 xUnit integration tests): `dotnet test` from the project root
+- Front end (3 Vitest tests): `cd web` → `npm test`
+
+The backend tests start the real API in memory with a throwaway SQLite database, so no SQL Server is needed.
+Each vulnerability is tested both ways: the attack **succeeds** against the vulnerable version and **fails**
+against the secure version.
+
 The database, tables and demo data are created automatically on first run.
 
 Demo users: `alice / alice123`, `bob / bob123`
@@ -135,5 +143,4 @@ currency like `XYZ`.
 Code: `api/Program.cs`, and the `summary` endpoints in both invoice controllers
 
 ## Coming next
-- Automated tests proving each attack succeeds on the vulnerable version and fails on the secure one
-- CI with GitHub Actions
+- CI with GitHub Actions: run every test automatically on each push
