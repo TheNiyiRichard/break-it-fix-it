@@ -137,7 +137,7 @@ function SummaryPanel({ mode }: { mode: Mode }) {
         <>
           {result.ok ? (
             <p className="total">
-              Total: <strong>{result.body.total.toFixed(2)} {result.body.currency}</strong> across {result.body.count} invoices
+              Total: <strong>{(result.body?.total ?? 0).toFixed(2)} {result.body?.currency}</strong> across {result.body?.count} invoices
             </p>
           ) : mode === 'vulnerable' ? (
             <div className="leak-box">
@@ -339,6 +339,11 @@ export default function App() {
           </div>
         )
         : <LoginForm mode={mode} onLogin={setUser} />}
+      <footer>
+        Built by Adeniyi Richard Adedokun ·{' '}
+        <a href="https://github.com/TheNiyiRichard/break-it-fix-it" target="_blank" rel="noreferrer">Source on GitHub</a> ·{' '}
+        <a href="https://owasp.org/Top10/" target="_blank" rel="noreferrer">OWASP Top 10</a>
+      </footer>
     </main>
   )
 }

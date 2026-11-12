@@ -70,10 +70,20 @@ export const WATCHED_HEADERS = [
   'Cache-Control',
 ]
 
+// What the summary endpoint can send back: a total on success, a message on a
+// safe error, or (in vulnerable mode) a dump of internal error details.
+export interface SummaryBody {
+  currency?: string
+  total?: number
+  count?: number
+  message?: string
+  [detail: string]: unknown
+}
+
 export interface RawResponse {
   ok: boolean
   status: number
-  body: any
+  body: SummaryBody | null
   headers: Record<string, string | null>
 }
 
