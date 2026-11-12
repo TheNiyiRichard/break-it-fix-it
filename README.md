@@ -1,4 +1,5 @@
 # Break It, Fix It
+[![CI](https://github.com/TheNiyiRichard/break-it-fix-it/actions/workflows/ci.yml/badge.svg)](https://github.com/TheNiyiRichard/break-it-fix-it/actions/workflows/ci.yml)
 
 An OWASP Top 10 showcase: one small invoice portal built twice, once with classic security
 vulnerabilities and once with each one fixed, plus automated tests that prove each fix works.
@@ -142,5 +143,20 @@ currency like `XYZ`.
 
 Code: `api/Program.cs`, and the `summary` endpoints in both invoice controllers
 
-## Coming next
-- CI with GitHub Actions: run every test automatically on each push
+## Continuous integration
+Every push and pull request runs [GitHub Actions](.github/workflows/ci.yml) with two jobs:
+- **Backend:** build the .NET solution and run all 27 security tests
+- **Front end:** lint, run the Vitest tests, and build
+
+If a security fix is ever removed by accident, a test fails and the build turns red.
+
+## Dependency management
+- [Dependabot](.github/dependabot.yml) checks .NET, npm and GitHub Actions dependencies weekly.
+  Patch and minor updates arrive as **one grouped pull request per ecosystem**, tested by CI before merging.
+  Major version upgrades are done deliberately by hand, since they can need code changes
+  (for example, EF Core 9 requires .NET 9).
+- **Dependabot alerts and security updates** are enabled, so known vulnerabilities are reported and patched
+  separately from the routine update schedule.
+- `npm audit` reports 7 moderate issues, all in the linter (`typescript-eslint` → `minimatch`), with no
+  released fix yet. They affect only the development tooling, never the running app.
+- `web/.npmrc` sets `legacy-peer-deps=true` to work around a known npm bug when installing Vitest 4.
