@@ -4,7 +4,19 @@
 An OWASP Top 10 showcase: one small invoice portal built twice, once with classic security
 vulnerabilities and once with each one fixed, plus automated tests that prove each fix works.
 
+![Demo: five attacks succeeding in Vulnerable mode and blocked in Secure mode](docs/demo.gif)
+
 > ⚠️ **Warning:** This project contains intentionally vulnerable code for learning purposes. Run it on your own computer only, and never deploy the vulnerable mode to a public server.
+
+## Highlights
+- **5 OWASP Top 10 vulnerabilities**, each built twice: deliberately broken, then properly fixed
+- **A live Secure / Vulnerable switch**, so you can run each attack and watch the fix block it
+- **A custom-designed interface:** an animated attack map shows the five attacks stopping at the app's shield
+  in Secure mode and getting through in Vulnerable mode
+- **30 automated tests** (xUnit + Vitest): every attack must succeed on the vulnerable version and fail on the secure one
+- **GitHub Actions CI** on every push, and **Dependabot** for dependency updates
+- Secure defaults throughout: parameterized queries, ownership checks, salted password hashing,
+  HttpOnly cookies, input validation, safe error handling and security headers
 
 ## How it works
 The app has a **Secure / Vulnerable** switch at the top of the page.
@@ -15,40 +27,50 @@ Same features, same data. The only difference is the code behind each request, s
 the vulnerable version and watch the secure version block it.
 
 ## Stack
-- ASP.NET Core 8 Web API, Entity Framework Core, SQL Server
-- React + TypeScript (Vite)
-- Cookie authentication (HttpOnly, SameSite=Strict)
-- xUnit integration tests, GitHub Actions CI
+- **Back end:** ASP.NET Core 8 Web API, Entity Framework Core, SQL Server
+- **Front end:** React + TypeScript (Vite), with a custom UI: an animated SVG attack map, hand-drawn icons,
+  and the Geist typeface bundled with the app (no third-party font requests)
+- **Auth:** cookie authentication (HttpOnly, SameSite=Strict)
+- **Testing:** xUnit integration tests (`WebApplicationFactory`), Vitest + Testing Library
+- **Delivery:** GitHub Actions CI, Dependabot
 
 ## Run locally
 1. Set your SQL Server connection string in `api/appsettings.json`.
 2. API: `cd api` → `dotnet run` (http://localhost:5080, Swagger at /swagger)
-3. Web: `cd web` → `npm install` → `npm run dev` (http://localhost:5173)
-
-## Run the tests
-- Backend (27 xUnit integration tests): `dotnet test` from the project root
-- Front end (3 Vitest tests): `cd web` → `npm test`
-
-The backend tests start the real API in memory with a throwaway SQLite database, so no SQL Server is needed.
-Each vulnerability is tested both ways: the attack **succeeds** against the vulnerable version and **fails**
-against the secure version.
+3. Web: `cd web` → `npm ci` → `npm run dev` (http://localhost:5173)
 
 The database, tables and demo data are created automatically on first run.
 
 Demo users: `alice / alice123`, `bob / bob123`
 
+## Run the tests
+- Back end (27 xUnit integration tests): `dotnet test` from the project root
+- Front end (3 Vitest tests): `cd web` → `npm test`
+
+The back-end tests start the real API in memory with a throwaway SQLite database, so no SQL Server is needed.
+Each vulnerability is tested both ways: the attack **succeeds** against the vulnerable version and **fails**
+against the secure version.
+
 ## Vulnerabilities
 | # | Vulnerability | OWASP Top 10 (2021) | Status |
 |---|---|---|---|
-| 1 | SQL injection | A03: Injection | ✅ |
-| 2 | Broken access control (IDOR) | A01: Broken Access Control | ✅ |
-| 3 | Stored XSS | A03: Injection | ✅ |
-| 4 | Plain-text password storage | A02: Cryptographic Failures | ✅ |
-| 5 | Security misconfiguration | A05: Security Misconfiguration | ✅ |
+| 1 | [SQL injection](#1-sql-injection) | A03: Injection | ✅ |
+| 2 | [Broken access control (IDOR)](#2-broken-access-control-idor) | A01: Broken Access Control | ✅ |
+| 3 | [Stored XSS](#3-stored-xss) | A03: Injection | ✅ |
+| 4 | [Plain-text password storage](#4-plain-text-password-storage) | A02: Cryptographic Failures | ✅ |
+| 5 | [Security misconfiguration](#5-security-misconfiguration) | A05: Security Misconfiguration | ✅ |
 
 ### 1. SQL injection
 **The attack:** in Vulnerable mode, sign in with username `' OR 1=1 --` and any password.
 You're signed in as alice without knowing her password.
+
+<table>
+  <tr><th>Vulnerable: signed in without a password</th><th>Secure: rejected</th></tr>
+  <tr>
+    <td><img src="docs/screenshots/02-sql-injection-vulnerable.png" alt="Vulnerable mode signed in as alice after the SQL injection" width="420"></td>
+    <td><img src="docs/screenshots/03-sql-injection-secure.png" alt="Secure mode rejecting the SQL injection" width="420"></td>
+  </tr>
+</table>
 
 **Why it works:** the vulnerable login builds SQL by joining user input into the query text:
 ```csharp
@@ -68,6 +90,14 @@ Code: `api/Controllers/Vulnerable/VulnerableAuthController.cs` vs `api/Controlle
 **The attack:** sign in as alice, switch to Vulnerable mode, and open invoice `3`.
 You see bob's confidential invoice just by changing the ID.
 
+<table>
+  <tr><th>Vulnerable: bob's invoice leaks</th><th>Secure: "Invoice not found"</th></tr>
+  <tr>
+    <td><img src="docs/screenshots/04-access-control-vulnerable.png" alt="Alice viewing bob's confidential invoice in vulnerable mode" width="420"></td>
+    <td><img src="docs/screenshots/05-access-control-secure.png" alt="Secure mode returning invoice not found" width="420"></td>
+  </tr>
+</table>
+
 **Why it works:** the vulnerable endpoint checks that you're signed in, but never checks that
 the invoice belongs to you.
 
@@ -84,6 +114,14 @@ Code: `api/Controllers/Vulnerable/VulnerableInvoicesController.cs` vs `api/Contr
 ```
 A pop-up appears: the note ran as code in the browser.
 
+<table>
+  <tr><th>Vulnerable: a note rewrites the page headline</th><th>Secure: shown as harmless text</th></tr>
+  <tr>
+    <td><img src="docs/screenshots/06-xss-vulnerable.png" alt="Page headline changed to Hacked by XSS by a stored note" width="420"></td>
+    <td><img src="docs/screenshots/07-xss-secure.png" alt="The same note displayed as plain text" width="420"></td>
+  </tr>
+</table>
+
 **Why it works:** the vulnerable page renders notes with React's `dangerouslySetInnerHTML`, so saved
 text is treated as real HTML. The image fails to load, which triggers `onerror` and runs the attacker's
 code. It's "stored" XSS because the attack is saved in the database and runs for anyone who views
@@ -93,11 +131,13 @@ that invoice.
 never executed. The server also limits notes to 500 characters as a second layer of defence. The session
 cookie is HttpOnly, so even if a script did run, it couldn't read the session.
 
-Code: `InvoiceNotes` in `web/src/App.tsx`, and the notes endpoints in both invoice controllers
+Code: `web/src/InvoiceNotes.tsx` (tested in `InvoiceNotes.test.tsx`), and the notes endpoints in both invoice controllers
 
 ### 4. Plain-text password storage
 **The demo:** sign in, scroll down and click **Simulate a data breach** to see what an attacker gets
 if the `Users` table leaks.
+
+<img src="docs/screenshots/08-password-storage.png" alt="Data breach simulator: plain-text passwords vs salted hashes" width="640">
 
 **The risk:** plain-text passwords let attackers sign in immediately, and try the same password on
 victims' email, banking and other accounts, since people reuse passwords.
@@ -116,6 +156,14 @@ Code: `api/Controllers/DemoController.cs`, `api/Data/DbSeeder.cs`, `api/Controll
 ### 5. Security misconfiguration
 **The attack:** in the "security misconfiguration" panel, ask for your invoice total in an unsupported
 currency like `XYZ`.
+
+<table>
+  <tr><th>Vulnerable: stack trace and server details leak</th><th>Secure: safe message + security headers</th></tr>
+  <tr>
+    <td><img src="docs/screenshots/09-misconfiguration-vulnerable.png" alt="Vulnerable mode leaking a stack trace and technology headers" width="420"></td>
+    <td><img src="docs/screenshots/10-misconfiguration-secure.png" alt="Secure mode with a short error and protective headers" width="420"></td>
+  </tr>
+</table>
 
 **Why it's dangerous:**
 - **Leaky errors:** the vulnerable endpoint doesn't validate input, so it crashes and sends the raw
@@ -143,9 +191,23 @@ currency like `XYZ`.
 
 Code: `api/Program.cs`, and the `summary` endpoints in both invoice controllers
 
+## Project structure
+```
+api/
+  Controllers/Secure/        fixed endpoints
+  Controllers/Vulnerable/    deliberately vulnerable endpoints
+  Controllers/DemoController.cs   data breach simulator (Development only)
+  Data/                      EF Core context and demo data
+  Program.cs                 auth, error handling, security headers
+tests/                       27 xUnit integration tests, one class per vulnerability
+web/src/                     React + TypeScript front end and Vitest tests
+  AttackMap.tsx              the animated hero (respects reduced-motion settings)
+.github/                     CI workflow and Dependabot policy
+```
+
 ## Continuous integration
 Every push and pull request runs [GitHub Actions](.github/workflows/ci.yml) with two jobs:
-- **Backend:** build the .NET solution and run all 27 security tests
+- **Back end:** build the .NET solution and run all 27 security tests
 - **Front end:** lint, run the Vitest tests, and build
 
 If a security fix is ever removed by accident, a test fails and the build turns red.
@@ -160,3 +222,18 @@ If a security fix is ever removed by accident, a test fails and the build turns 
 - `npm audit` reports 7 moderate issues, all in the linter (`typescript-eslint` → `minimatch`), with no
   released fix yet. They affect only the development tooling, never the running app.
 - `web/.npmrc` sets `legacy-peer-deps=true` to work around a known npm bug when installing Vitest 4.
+
+## What I learned
+- How each of these attacks actually works, by writing the vulnerable code myself and then breaking it.
+- That most fixes are small, like one ownership check or one parameterized query, which is exactly why
+  they're easy to forget and worth guarding with tests.
+- Defence in depth: HttpOnly cookies limit the damage of XSS, and a Content-Security-Policy would block it
+  as a second layer.
+- Writing tests that prove a fix works, and checking that they fail when the fix is removed.
+- Running CI and a deliberate dependency-update policy, including catching an incompatible upgrade
+  (EF Core 9 on .NET 8) before it reached the main branch.
+
+## Author
+**Adeniyi Richard Adedokun**, full stack developer, CompTIA Security+
+
+[Portfolio](https://adeniyi-richard.netlify.app) · [LinkedIn](https://www.linkedin.com/in/adeniyi-richard-adedokun-a8a848213) · [GitHub](https://github.com/TheNiyiRichard)
